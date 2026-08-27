@@ -2,6 +2,8 @@
 <html lang="ko">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-title" content="초성 룰렛">
+<link rel="apple-touch-icon" href="icon.png">
 <title>초성 룰렛</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Gowun+Dodum&display=swap">
 <style>
@@ -356,7 +358,16 @@
     font-size:13px;
     padding-top:9px;
   }
-  .chips{display:flex; gap:8px; flex-wrap:wrap;}
+  .chips{
+    display:flex; gap:8px; flex-wrap:wrap;
+    max-height:88px;          /* 단어가 많아져도 리스트 안에서만 스크롤 — 화면이 밀리지 않게 */
+    overflow-y:auto;
+  }
+  .chip.placeholder{
+    color:var(--text-dim);
+    border-style:dashed;
+    font-size:14px;
+  }
   .chip{
     font-family:var(--body);
     font-size:16px;
@@ -409,7 +420,7 @@
   <div class="actions" id="actions"></div>
 </main>
 
-<div class="answers" id="answersRow" hidden>
+<div class="answers" id="answersRow">
   <span class="label">정답 리스트</span>
   <div class="chips" id="chips"></div>
   <span class="count" id="answerCount"></span>
@@ -765,13 +776,13 @@
   }
 
   function renderAnswers(){
-    answersRow.hidden = answers.length === 0;
     answerCount.textContent = answers.length ? answers.length + '개' : '';
-    chips.innerHTML = answers
-      .map((a, i) =>
-        '<span class="chip' + (i === 0 ? ' latest' : '') + '">' + a.word + '</span>')
-      .join('');
+    chips.innerHTML = answers.length
+      ? answers.map((a, i) =>
+          '<span class="chip' + (i === 0 ? ' latest' : '') + '">' + a.word + '</span>').join('')
+      : '<span class="chip placeholder">정답을 외치면 여기에 쌓여요</span>';
   }
+  renderAnswers();
 
   function resetStage(){
     pauseListening();
