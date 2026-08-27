@@ -195,6 +195,78 @@
     pointer-events:none;
   }
 
+  /* ── 팀 점수판 ─────────────────────── */
+  .scoreboard{
+    position:absolute;
+    top:12px;
+    left:0;
+    right:0;
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    padding:0 14px;
+    z-index:5;
+    pointer-events:none;
+  }
+  .scorePod{
+    pointer-events:auto;
+    background:var(--ground-deep);
+    border:1px solid var(--panel-edge);
+    border-radius:16px;
+    padding:8px 14px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:2px;
+    min-width:76px;
+  }
+  .scorePod .teamName{font-size:13px; letter-spacing:1px;}
+  .scorePod.teamA .teamName{color:var(--amber);}
+  .scorePod.teamB .teamName{color:var(--mint);}
+  .scoreNum{
+    font-family:var(--display);
+    font-weight:400;
+    font-size:30px;
+    line-height:1;
+    color:var(--text);
+    font-variant-numeric:tabular-nums;
+  }
+  @keyframes bump{0%{transform:scale(1.45);}100%{transform:scale(1);}}
+  .scoreNum.bump{animation:bump .25s ease;}
+  .scoreBtns{display:flex; gap:6px; margin-top:4px;}
+  .sBtn{
+    width:32px; height:32px;
+    border-radius:50%;
+    border:1px solid var(--panel-edge);
+    background:var(--panel);
+    color:var(--text);
+    font-size:17px;
+    line-height:1;
+    cursor:pointer;
+  }
+  .sBtn.plus{border-color:rgba(78,230,184,.55); color:var(--mint);}
+  .sBtn.minus{color:var(--text-dim);}
+  .sBtn:active{transform:scale(.88);}
+  .sBtn:focus-visible{outline:2px solid var(--mint); outline-offset:2px;}
+  .scoreReset{
+    pointer-events:auto;
+    background:transparent;
+    border:0;
+    color:var(--text-dim);
+    font-size:18px;
+    cursor:pointer;
+    padding:6px 10px;
+  }
+  .scoreReset:hover{color:var(--text);}
+  @media (max-height:780px){
+    .scoreNum{font-size:24px;}
+    .scorePod{padding:6px 10px; min-width:64px;}
+    .sBtn{width:27px; height:27px; font-size:15px;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .scoreNum.bump{animation:none;}
+  }
+
   .hint{
     color:var(--text-dim);
     font-size:16px;
@@ -231,6 +303,13 @@
     color:var(--pink);
     text-shadow:0 0 60px rgba(255,92,138,.45);
   }
+  /* 이모지 퀴즈 문제 */
+  .big.emoji{
+    font-size:clamp(38px, min(12vw, 11vh), 88px);
+    letter-spacing:.08em;
+    white-space:nowrap;
+    text-shadow:none;
+  }
   /* 텔레스트레이션 단어 카드 */
   .big.word{
     font-size:clamp(40px, min(15vw, 13vh), 104px);
@@ -241,6 +320,14 @@
   .big.qmark{
     color:var(--amber);
     text-shadow:0 0 50px rgba(255,201,60,.4);
+  }
+  /* 이모지 퀴즈 정답 — 긴 제목도 줄바꿈되며 화면 안에 들어오게 */
+  .big.title{
+    font-size:clamp(28px, min(9vw, 9vh), 72px);
+    white-space:normal;
+    text-align:center;
+    line-height:1.25;
+    max-width:92vw;
   }
 
   @keyframes pop{
@@ -254,7 +341,7 @@
     100%{transform:scale(1) rotate(0);      opacity:1;}
   }
   .big.count, .big.qmark{animation:pop .9s cubic-bezier(.2,.9,.3,1) both;}
-  .big.jamo, .big.word{animation:reveal .55s cubic-bezier(.2,.9,.3,1.2) both;}
+  .big.jamo, .big.word, .big.emoji{animation:reveal .55s cubic-bezier(.2,.9,.3,1.2) both;}
 
   .ring{
     position:absolute;
@@ -327,7 +414,7 @@
   }
 
   @media (prefers-reduced-motion: reduce){
-    .big.count, .big.jamo, .big.qmark, .big.word{animation:none;}
+    .big.count, .big.jamo, .big.qmark, .big.word, .big.emoji{animation:none;}
     .ring.go{animation:none; opacity:0;}
     .micPill::before{animation:none;}
     .verdict.bad{animation:none;}
@@ -458,6 +545,7 @@
     <span class="tag">PARTY GAMES</span>
   </div>
   <div class="headBtns">
+    <button class="pillBtn" id="scoreTog" aria-pressed="false">🏆 점수판</button>
     <button class="pillBtn" id="micBtn" aria-pressed="true">🎤 음성 인식 켜짐</button>
     <button class="pillBtn" id="soundBtn" aria-pressed="true">🔊 소리 켜짐</button>
   </div>
@@ -467,6 +555,7 @@
   <div class="gameTabs" role="group" aria-label="게임 선택">
     <button id="gameCho" aria-pressed="true">🗣️ 초성게임</button>
     <button id="gameTel" aria-pressed="false">🎨 텔레스트레이션</button>
+    <button id="gameEmo" aria-pressed="false">🎬 이모지 퀴즈</button>
   </div>
   <div class="modes" id="choModes" role="group" aria-label="초성게임 모드">
     <button id="mode1" aria-pressed="true">초성 한 글자</button>
@@ -477,9 +566,32 @@
     <button data-level="normal" aria-pressed="false">보통</button>
     <button data-level="hard" aria-pressed="false">어려움</button>
   </div>
+  <div class="modes" id="emoModes" role="group" aria-label="이모지 퀴즈 종류" hidden>
+    <button data-cat="movie" aria-pressed="true">영화</button>
+    <button data-cat="drama" aria-pressed="false">드라마</button>
+  </div>
 </div>
 
 <main class="stage" aria-live="polite">
+  <div class="scoreboard" id="scoreboard" hidden>
+    <div class="scorePod teamA">
+      <span class="teamName">A팀</span>
+      <span class="scoreNum" id="scoreA">0</span>
+      <div class="scoreBtns">
+        <button class="sBtn plus" data-team="A" data-d="1" aria-label="A팀 점수 올리기">+</button>
+        <button class="sBtn minus" data-team="A" data-d="-1" aria-label="A팀 점수 내리기">−</button>
+      </div>
+    </div>
+    <button class="scoreReset" id="scoreReset" title="점수 초기화">↺</button>
+    <div class="scorePod teamB">
+      <span class="teamName">B팀</span>
+      <span class="scoreNum" id="scoreB">0</span>
+      <div class="scoreBtns">
+        <button class="sBtn plus" data-team="B" data-d="1" aria-label="B팀 점수 올리기">+</button>
+        <button class="sBtn minus" data-team="B" data-d="-1" aria-label="B팀 점수 내리기">−</button>
+      </div>
+    </div>
+  </div>
   <div class="ring" id="ring"></div>
   <div class="bigWrap"><div class="big" id="big"></div></div>
   <div class="listen" id="listenRow" hidden>
@@ -528,6 +640,115 @@
     ]
   };
   const TEL_LEVEL_NAMES = { easy:'쉬움', normal:'보통', hard:'어려움' };
+
+  /* 이모지 퀴즈 문제 은행 — e: 이모지 문제, a: 정답 제목 */
+  const EMOJI_QUIZ = {
+    movie: [
+      {e:'🐛🏠', a:'기생충'},
+      {e:'🧟🚄', a:'부산행'},
+      {e:'🚢🧊💔', a:'타이타닉'},
+      {e:'❄️👸⛄', a:'겨울왕국'},
+      {e:'🦁👑', a:'라이온 킹'},
+      {e:'⚡🧙🏰', a:'해리포터'},
+      {e:'💍🌋🧙', a:'반지의 제왕'},
+      {e:'💛👓🍌', a:'미니언즈'},
+      {e:'🧞🪔🐒', a:'알라딘'},
+      {e:'🔍🐠', a:'니모를 찾아서'},
+      {e:'🚀🌽⏰', a:'인터스텔라'},
+      {e:'⚖️👻🔥', a:'신과함께'},
+      {e:'🍗👮🚓', a:'극한직업'},
+      {e:'🌊⚔️🚢', a:'명량'},
+      {e:'🦖🏝️', a:'쥬라기 공원'},
+      {e:'🦍🏢✈️', a:'킹콩'},
+      {e:'🕷️🕸️🦸', a:'스파이더맨'},
+      {e:'😀😢😡😱🤢', a:'인사이드 아웃'},
+      {e:'🎈🏠👴', a:'업'},
+      {e:'🐀👨‍🍳🍲', a:'라따뚜이'},
+      {e:'🤠👨‍🚀🧸', a:'토이 스토리'},
+      {e:'🏴‍☠️⚓🦜', a:'캐리비안의 해적'},
+      {e:'🚗⚡⏰', a:'백 투 더 퓨처'},
+      {e:'🔵👽🌳', a:'아바타'},
+      {e:'💚👹🐴', a:'슈렉'},
+      {e:'🐼🥋🍜', a:'쿵푸팬더'},
+      {e:'🧗🏢💨', a:'엑시트'},
+      {e:'🧜‍♀️🌊🦀', a:'인어공주'},
+      {e:'🦸🦸‍♀️🦸‍♂️💥', a:'어벤져스'},
+      {e:'🌊⛵🐔', a:'모아나'},
+      {e:'🐰👮🦊', a:'주토피아'},
+      {e:'💀🎸🌼', a:'코코'},
+      {e:'🎹💃🌆', a:'라라랜드'},
+      {e:'⏰❤️🔁', a:'어바웃 타임'},
+      {e:'💌👵👴🌧️', a:'노트북'},
+      {e:'🎴💰🔪', a:'타짜'},
+      {e:'💇‍♂️🔫👧', a:'아저씨'},
+      {e:'🔨🥟⏳', a:'올드보이'},
+      {e:'🚂❄️🍫', a:'설국열차'},
+      {e:'🕵️‍♀️🔫🎯🇰🇷', a:'암살'},
+      {e:'💎🕵️🕵️‍♀️', a:'도둑들'},
+      {e:'7️⃣🚪👧🎁', a:'7번방의 선물'},
+      {e:'👸🥀👹', a:'미녀와 야수'},
+      {e:'👨‍🚀🥔🔴', a:'마션'},
+      {e:'👩‍🚀🛰️😱', a:'그래비티'},
+      {e:'🔴🔵💊🕶️', a:'매트릭스'},
+      {e:'🤖🔫🕶️👍', a:'터미네이터'},
+      {e:'🎲🦏🌴', a:'쥬만지'},
+      {e:'🏠👦🎄😱', a:'나 홀로 집에'},
+      {e:'🕵️🧗💥🎬', a:'미션 임파서블'},
+      {e:'👽🚲🌕', a:'E.T.'},
+      {e:'🦈🌊🏖️😱', a:'죠스'},
+      {e:'☀️👭💃📼', a:'써니'},
+      {e:'👵➡️👧🎤', a:'수상한 그녀'},
+      {e:'🇰🇷⚔️👬😢', a:'태극기 휘날리며'},
+      {e:'🌊🌊🏖️🏃', a:'해운대'},
+      {e:'🚗🕳️📻', a:'터널'},
+      {e:'🌱👵🇺🇸', a:'미나리'}
+    ],
+    drama: [
+      {e:'🦑🔴🟢', a:'오징어 게임'},
+      {e:'🐋⚖️👩', a:'이상한 변호사 우영우'},
+      {e:'🗡️☂️🌾', a:'도깨비'},
+      {e:'☀️🪖❤️', a:'태양의 후예'},
+      {e:'🪂💑', a:'사랑의 불시착'},
+      {e:'⭐👽❤️', a:'별에서 온 그대'},
+      {e:'👑🧟🏯', a:'킹덤'},
+      {e:'☁️🏰📚', a:'SKY 캐슬'},
+      {e:'📞1️⃣9️⃣8️⃣8️⃣', a:'응답하라 1988'},
+      {e:'🏫🔥😠', a:'더 글로리'},
+      {e:'💰👶🔄', a:'재벌집 막내아들'},
+      {e:'🏨🌙👻', a:'호텔 델루나'},
+      {e:'🌃🍺✊', a:'이태원 클라쓰'},
+      {e:'🇮🇹⚖️🔥', a:'빈센조'},
+      {e:'🦷🌊🏡', a:'갯마을 차차차'},
+      {e:'🏥👨‍⚕️🎸', a:'슬기로운 의사생활'},
+      {e:'♟️💼😓', a:'미생'},
+      {e:'📻👮⏳', a:'시그널'},
+      {e:'🏫🧟📱', a:'지금 우리 학교는'},
+      {e:'☕🤴🏪', a:'커피프린스'},
+      {e:'🏯👩‍🍳💉', a:'대장금'},
+      {e:'🕴️⚡👨‍👦', a:'무빙'},
+      {e:'⚾❄️💼', a:'스토브리그'},
+      {e:'🤵📋💘👩‍💼', a:'김비서가 왜 그럴까'},
+      {e:'🌺🍺👮', a:'동백꽃 필 무렵'},
+      {e:'💍💔🔥', a:'부부의 세계'},
+      {e:'🏢🔝😈👠', a:'펜트하우스'},
+      {e:'🚇👨👧🍺', a:'나의 아저씨'},
+      {e:'😭👸💍', a:'눈물의 여왕'},
+      {e:'🎸⏪🏃‍♀️', a:'선재 업고 튀어'},
+      {e:'🔄👫✨', a:'시크릿 가든'},
+      {e:'👑🎒💰🏫', a:'상속자들'},
+      {e:'🌅🔫🤵💌', a:'미스터 션샤인'},
+      {e:'💉👨‍⚕️🌄', a:'낭만닥터 김사부'},
+      {e:'👑🐉⚔️❄️', a:'왕좌의 게임'},
+      {e:'🕵️🎻🇬🇧', a:'셜록'},
+      {e:'🎭💰🏦', a:'종이의 집'},
+      {e:'🛋️☕👫👬', a:'프렌즈'},
+      {e:'🖤👧🏫✋', a:'웬즈데이'},
+      {e:'🔦👾🚲', a:'기묘한 이야기'},
+      {e:'❄️🧣💞', a:'겨울연가'},
+      {e:'🌸👑🏫4️⃣', a:'꽃보다 남자'}
+    ]
+  };
+  const EMO_CAT_NAMES = { movie:'영화', drama:'드라마' };
   const CHO_LIST = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
 
   const big        = document.getElementById('big');
@@ -549,8 +770,10 @@
   const mode2Btn   = document.getElementById('mode2');
   const gameChoBtn = document.getElementById('gameCho');
   const gameTelBtn = document.getElementById('gameTel');
+  const gameEmoBtn = document.getElementById('gameEmo');
   const choModesEl = document.getElementById('choModes');
   const telModesEl = document.getElementById('telModes');
+  const emoModesEl = document.getElementById('emoModes');
 
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   /* iPadOS는 데스크톱 사파리로 위장하므로 터치 지점 수로도 판별 */
@@ -786,28 +1009,125 @@
     else showVerdict('✗ 한글 단어만 입력할 수 있어요', 'bad');
   });
 
+  /* ── 팀 점수판 ── */
+  const scoreboard = document.getElementById('scoreboard');
+  const scoreTog   = document.getElementById('scoreTog');
+  const scores = { A: 0, B: 0 };
+
+  scoreTog.addEventListener('click', () => {
+    scoreboard.hidden = !scoreboard.hidden;
+    scoreTog.setAttribute('aria-pressed', String(!scoreboard.hidden));
+  });
+
+  function renderScore(team){
+    const el = document.getElementById('score' + team);
+    el.textContent = scores[team];
+    el.classList.remove('bump');
+    void el.offsetWidth;
+    el.classList.add('bump');
+  }
+
+  scoreboard.addEventListener('click', e => {
+    const b = e.target.closest('.sBtn');
+    if(!b) return;
+    const t = b.dataset.team;
+    scores[t] = Math.max(0, scores[t] + parseInt(b.dataset.d, 10));
+    renderScore(t);
+    if(soundOn){ ctx(); tone(b.dataset.d > 0 ? 988 : 494, 0, 0.1, 0.14); }
+  });
+
+  document.getElementById('scoreReset').addEventListener('click', () => {
+    scores.A = 0; scores.B = 0;
+    renderScore('A'); renderScore('B');
+  });
+
   /* ── 게임 전환 ── */
-  let gameMode = 'cho';   // 'cho' | 'tel'
+  let gameMode = 'cho';   // 'cho' | 'tel' | 'emo'
   function setGame(g){
     if(running || g === gameMode) return;
     gameMode = g;
     gameChoBtn.setAttribute('aria-pressed', String(g === 'cho'));
     gameTelBtn.setAttribute('aria-pressed', String(g === 'tel'));
+    gameEmoBtn.setAttribute('aria-pressed', String(g === 'emo'));
     choModesEl.hidden = g !== 'cho';
     telModesEl.hidden = g !== 'tel';
-    micBtn.hidden = g === 'tel';
-    answersRow.hidden = g === 'tel';
-    if(g === 'tel'){
-      pauseListening();
-      stopRecogOnly();
-      telReset();
-    } else {
+    emoModesEl.hidden = g !== 'emo';
+    micBtn.hidden = g !== 'cho';
+    answersRow.hidden = g !== 'cho';
+    if(g === 'cho'){
       renderAnswers();
       resetStage();
+    } else {
+      pauseListening();
+      stopRecogOnly();
+      if(g === 'tel') telReset(); else emoReset();
     }
   }
   gameChoBtn.addEventListener('click', () => setGame('cho'));
   gameTelBtn.addEventListener('click', () => setGame('tel'));
+  gameEmoBtn.addEventListener('click', () => setGame('emo'));
+
+  /* ── 이모지 퀴즈 ── */
+  let emoCat = 'movie';
+  let emoDeck = [];
+  let emoItem = null;
+
+  emoModesEl.querySelectorAll('button').forEach(b => {
+    b.addEventListener('click', () => {
+      emoCat = b.dataset.cat;
+      emoModesEl.querySelectorAll('button').forEach(x =>
+        x.setAttribute('aria-pressed', String(x === b)));
+      emoDeck = [];
+      emoReset();
+    });
+  });
+
+  function emoDraw(){
+    if(emoDeck.length === 0){
+      emoDeck = EMOJI_QUIZ[emoCat].slice();
+      for(let i = emoDeck.length - 1; i > 0; i--){
+        const j = Math.floor(Math.random() * (i + 1));
+        [emoDeck[i], emoDeck[j]] = [emoDeck[j], emoDeck[i]];
+      }
+    }
+    emoItem = emoDeck.pop();
+  }
+
+  function emoQuestion(){
+    ctx();
+    emoDraw();
+    big.className = 'big emoji';
+    big.textContent = emoItem.e;
+    chimeReveal();
+    hint.innerHTML = '이 이모지가 표현하는 <b>' + EMO_CAT_NAMES[emoCat] + '</b> 제목은?<br>다 함께 정답을 외쳐 보세요!';
+    actions.innerHTML =
+      '<button class="btn btn-next" id="emoAnswerBtn">정답 공개</button>' +
+      '<button class="btn btn-reset" id="emoHomeBtn">처음으로</button>';
+    document.getElementById('emoAnswerBtn').addEventListener('click', emoAnswer);
+    document.getElementById('emoHomeBtn').addEventListener('click', emoReset);
+  }
+
+  function emoAnswer(){
+    big.className = 'big word title';
+    big.textContent = emoItem.a;
+    chimePass();
+    hint.innerHTML = emoItem.e + '<br>맞히셨나요? 다음 문제로 넘어가 보세요!';
+    actions.innerHTML =
+      '<button class="btn btn-start" id="emoNextBtn">다음 문제</button>' +
+      '<button class="btn btn-reset" id="emoHomeBtn2">처음으로</button>';
+    document.getElementById('emoNextBtn').addEventListener('click', emoQuestion);
+    document.getElementById('emoHomeBtn2').addEventListener('click', emoReset);
+  }
+
+  function emoReset(){
+    big.className = 'big';
+    big.textContent = '';
+    verdictEl.textContent = '';
+    verdictEl.className = 'verdict';
+    hint.innerHTML = '「문제 뽑기」를 누르면 <b>' + EMO_CAT_NAMES[emoCat] + '</b> 제목을 표현한 이모지 문제가 나옵니다.<br>다 함께 보고 정답을 외쳐 보세요!';
+    actions.innerHTML = '<button class="btn btn-start" id="emoDrawBtn">문제 뽑기</button>';
+    document.getElementById('emoDrawBtn').addEventListener('click', emoQuestion);
+  }
 
   /* ── 텔레스트레이션 ── */
   let telLevel = 'easy';
