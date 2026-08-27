@@ -1,4 +1,7 @@
+<!doctype html>
+<html lang="ko">
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>초성 룰렛</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Gowun+Dodum&display=swap">
 <style>
@@ -27,7 +30,11 @@
     flex-direction:column;
     align-items:center;
     min-height:100vh;
+    min-height:100svh;   /* iOS Safari 툴바를 제외한 실제 보이는 높이 */
     padding:24px 16px 32px;
+  }
+  @media (max-width:700px){
+    body{padding:12px 10px 20px;}
   }
 
   /* ── 헤더 ─────────────────────────── */
@@ -121,6 +128,11 @@
     box-shadow:0 24px 60px rgba(0,0,0,.35);
     padding:24px 16px;
   }
+  @media (max-width:700px){
+    .stage{min-height:340px; border-radius:20px; gap:10px; margin-top:16px;}
+    .btn{font-size:19px; padding:13px 30px;}
+    .hint{font-size:14px;}
+  }
   .stage::before{
     content:"";
     position:absolute;
@@ -140,7 +152,8 @@
 
   /* 대형 표시 영역 */
   .bigWrap{
-    height:clamp(150px, 28vh, 260px);
+    height:clamp(110px, 26vh, 260px);
+    max-width:100%;
     display:flex;
     align-items:center;
     justify-content:center;
@@ -148,11 +161,14 @@
   .big{
     font-family:var(--display);
     font-weight:400;
-    line-height:1;
-    font-size:clamp(100px, 22vw, 200px);
+    line-height:1.1;
+    /* 가로·세로 어느 쪽도 넘치지 않게 — 두 글자 모드(글자 2개)를 기준으로 가로 제한 */
+    font-size:clamp(64px, min(38vw, 22vh), 200px);
     letter-spacing:.04em;
     user-select:none;
+    white-space:nowrap;
   }
+  .big.two{font-size:clamp(56px, min(30vw, 22vh), 180px);}
   .big.count{color:var(--amber);}
   .big.count.n2{color:var(--mint);}
   .big.count.n1{color:var(--pink);}
@@ -524,7 +540,7 @@
     if(recog) return;   // 이미 돌고 있으면 그대로 유지 — 껐다 켜면 권한창이 다시 뜬다
     recog = new SR();
     recog.lang = 'ko-KR';
-    recog.continuous = true;
+    recog.continuous = !IS_IOS;      // iOS Safari는 연속 모드가 불안정 — 한 문장씩 듣고 자동 재시작
     recog.interimResults = true;
     recog.onresult = e => {
       let interim = '';
@@ -711,7 +727,7 @@
     }
 
     target = pickJamo();
-    big.className = 'big jamo';
+    big.className = 'big jamo' + (mode === 2 ? ' two' : '');
     big.textContent = target;
     chimeReveal();
 
@@ -728,7 +744,9 @@
       '<button class="btn btn-next" id="nextBtn">다 음</button>' +
       '<button class="btn btn-reset" id="resetBtn">처음으로</button>';
     document.getElementById('nextBtn').addEventListener('click', () => {
-      running = false; lockModes(false); round();
+      running = false; lockModes(false);
+      if(IS_IOS){ stopRecogOnly(); startRecog(); }   // 터치 제스처 안에서 새로 시작해야 iOS에서 안정적
+      round();
     });
     document.getElementById('resetBtn').addEventListener('click', () => {
       running = false;
@@ -767,7 +785,7 @@
     actions.innerHTML = '<button class="btn btn-start" id="startBtn">시 작</button>';
     document.getElementById('startBtn').addEventListener('click', () => {
       ctx();
-      if(IS_IOS) startRecog();   // iOS는 터치 순간에 인식을 시작해야 허용창이 시작 시점에 뜬다
+      if(IS_IOS){ stopRecogOnly(); startRecog(); }   // iOS는 터치 순간에 인식을 시작해야 허용창이 시작 시점에 뜨고 안정적
       round();                   // 그 외 환경에서는 초성 공개 후에 마이크가 켜진다
     });
     lockModes(false);
@@ -775,3 +793,5 @@
 
   resetStage();
 </script>
+
+</html>
