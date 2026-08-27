@@ -2,9 +2,9 @@
 <html lang="ko">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="apple-mobile-web-app-title" content="초성 룰렛">
+<meta name="apple-mobile-web-app-title" content="파티 룰렛">
 <link rel="apple-touch-icon" href="icon.png">
-<title>초성 룰렛</title>
+<title>파티 룰렛</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Gowun+Dodum&display=swap">
 <style>
   :root{
@@ -82,9 +82,37 @@
   .pillBtn:focus-visible{outline:2px solid var(--mint); outline-offset:2px;}
   .pillBtn[aria-pressed="false"]{color:var(--text-dim);}
 
+  /* ── 게임 선택 탭 ────────────────────── */
+  .gameTabs{
+    margin-top:20px;
+    display:flex;
+    gap:8px;
+    background:var(--panel);
+    border:1px solid var(--panel-edge);
+    border-radius:999px;
+    padding:6px;
+  }
+  .gameTabs button{
+    border:0;
+    background:transparent;
+    color:var(--text-dim);
+    font-family:var(--body);
+    font-size:15px;
+    padding:10px 24px;
+    border-radius:999px;
+    cursor:pointer;
+    transition:background .15s, color .15s;
+  }
+  .gameTabs button[aria-pressed="true"]{
+    background:var(--pink);
+    color:#3A0016;
+  }
+  .gameTabs button:focus-visible{outline:2px solid var(--mint); outline-offset:2px;}
+  .gameTabs button:disabled{opacity:.45; cursor:default;}
+
   /* ── 모드 탭 ─────────────────────────── */
   .modes{
-    margin-top:22px;
+    margin-top:12px;
     display:flex;
     gap:8px;
     background:var(--panel);
@@ -193,6 +221,17 @@
     color:var(--pink);
     text-shadow:0 0 60px rgba(255,92,138,.45);
   }
+  /* 텔레스트레이션 단어 카드 */
+  .big.word{
+    font-size:clamp(40px, min(15vw, 13vh), 104px);
+    color:var(--mint);
+    text-shadow:0 0 50px rgba(78,230,184,.4);
+    white-space:nowrap;
+  }
+  .big.qmark{
+    color:var(--amber);
+    text-shadow:0 0 50px rgba(255,201,60,.4);
+  }
 
   @keyframes pop{
     0%  {transform:scale(2.2); opacity:0;}
@@ -204,8 +243,8 @@
     60% {transform:scale(1.12) rotate(2deg); opacity:1;}
     100%{transform:scale(1) rotate(0);      opacity:1;}
   }
-  .big.count{animation:pop .9s cubic-bezier(.2,.9,.3,1) both;}
-  .big.jamo{animation:reveal .55s cubic-bezier(.2,.9,.3,1.2) both;}
+  .big.count, .big.qmark{animation:pop .9s cubic-bezier(.2,.9,.3,1) both;}
+  .big.jamo, .big.word{animation:reveal .55s cubic-bezier(.2,.9,.3,1.2) both;}
 
   .ring{
     position:absolute;
@@ -278,7 +317,7 @@
   }
 
   @media (prefers-reduced-motion: reduce){
-    .big.count, .big.jamo{animation:none;}
+    .big.count, .big.jamo, .big.qmark, .big.word{animation:none;}
     .ring.go{animation:none; opacity:0;}
     .micPill::before{animation:none;}
     .verdict.bad{animation:none;}
@@ -405,8 +444,8 @@
 
 <header>
   <div class="brand">
-    <h1>초성 룰렛<span class="dot">.</span></h1>
-    <span class="tag">CHOSEONG GAME</span>
+    <h1>파티 룰렛<span class="dot">.</span></h1>
+    <span class="tag">PARTY GAMES</span>
   </div>
   <div class="headBtns">
     <button class="pillBtn" id="micBtn" aria-pressed="true">🎤 음성 인식 켜짐</button>
@@ -414,9 +453,20 @@
   </div>
 </header>
 
-<div class="modes" role="group" aria-label="게임 모드">
+<div class="gameTabs" role="group" aria-label="게임 선택">
+  <button id="gameCho" aria-pressed="true">🗣️ 초성게임</button>
+  <button id="gameTel" aria-pressed="false">🎨 텔레스트레이션</button>
+</div>
+
+<div class="modes" id="choModes" role="group" aria-label="초성게임 모드">
   <button id="mode1" aria-pressed="true">초성 한 글자</button>
   <button id="mode2" aria-pressed="false">초성 두 글자</button>
+</div>
+
+<div class="modes" id="telModes" role="group" aria-label="텔레스트레이션 난이도" hidden>
+  <button data-level="easy" aria-pressed="true">쉬움</button>
+  <button data-level="normal" aria-pressed="false">보통</button>
+  <button data-level="hard" aria-pressed="false">어려움</button>
 </div>
 
 <main class="stage" aria-live="polite">
@@ -443,6 +493,31 @@
 
 <script>
   const JAMO = ['ㄱ','ㄴ','ㄷ','ㄹ','ㅁ','ㅂ','ㅅ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+
+  /* 텔레스트레이션 단어 카드 — 그림으로 표현하기 좋은 단어들 */
+  const TEL_WORDS = {
+    easy: [
+      '사과','바나나','수박','피자','햄버거','라면','아이스크림','케이크','도넛','포도',
+      '강아지','고양이','코끼리','기린','펭귄','토끼','거북이','나비','문어','상어',
+      '공룡','병아리','달팽이','부엉이','악어','안경','우산','시계','컴퓨터','자전거',
+      '비행기','로켓','눈사람','무지개','산타클로스','로봇','축구공','기타','피아노','왕관',
+      '촛불','풍선','선인장','헬리콥터','냉장고'
+    ],
+    normal: [
+      '낚시','등산','줄넘기','세수','양치질','요리사','소방관','경찰관','의사','미용사',
+      '마술사','해적','우주인','발레리나','농부','놀이공원','수영장','도서관','병원','캠핑',
+      '결혼식','생일파티','눈싸움','번지점프','스키','야구','볼링','태권도','요가','낮잠',
+      '빨래','청소','이사','소풍','불꽃놀이','줄다리기','팔씨름','셀카','배달','낙하산',
+      '건배','응원','찜질방','헬스장','바베큐'
+    ],
+    hard: [
+      '월요병','짝사랑','작심삼일','야근','층간소음','다이어트','늦잠','지각','멀미','딸꾹질',
+      '데자뷰','소름','재채기','몸살','어지럼증','평화','자유','추억','소문','눈치',
+      '허세','밀당','불면증','새치기','바가지','효도','배신','첫눈','향수병','무중력',
+      '투명인간','초능력','시간여행','저주','행운','악몽','환승','품절','정전','대박'
+    ]
+  };
+  const TEL_LEVEL_NAMES = { easy:'쉬움', normal:'보통', hard:'어려움' };
   const CHO_LIST = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
 
   const big        = document.getElementById('big');
@@ -462,6 +537,10 @@
   const micBtn     = document.getElementById('micBtn');
   const mode1Btn   = document.getElementById('mode1');
   const mode2Btn   = document.getElementById('mode2');
+  const gameChoBtn = document.getElementById('gameCho');
+  const gameTelBtn = document.getElementById('gameTel');
+  const choModesEl = document.getElementById('choModes');
+  const telModesEl = document.getElementById('telModes');
 
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   /* iPadOS는 데스크톱 사파리로 위장하므로 터치 지점 수로도 판별 */
@@ -696,6 +775,97 @@
     else if(j.res !== 'skip') reject(j);
     else showVerdict('✗ 한글 단어만 입력할 수 있어요', 'bad');
   });
+
+  /* ── 게임 전환 ── */
+  let gameMode = 'cho';   // 'cho' | 'tel'
+  function setGame(g){
+    if(running || g === gameMode) return;
+    gameMode = g;
+    gameChoBtn.setAttribute('aria-pressed', String(g === 'cho'));
+    gameTelBtn.setAttribute('aria-pressed', String(g === 'tel'));
+    choModesEl.hidden = g !== 'cho';
+    telModesEl.hidden = g !== 'tel';
+    micBtn.hidden = g === 'tel';
+    answersRow.hidden = g === 'tel';
+    if(g === 'tel'){
+      pauseListening();
+      stopRecogOnly();
+      telReset();
+    } else {
+      renderAnswers();
+      resetStage();
+    }
+  }
+  gameChoBtn.addEventListener('click', () => setGame('cho'));
+  gameTelBtn.addEventListener('click', () => setGame('tel'));
+
+  /* ── 텔레스트레이션 ── */
+  let telLevel = 'easy';
+  let telDeck = [];
+  let telWord = null;
+  let telPrev = null;
+
+  telModesEl.querySelectorAll('button').forEach(b => {
+    b.addEventListener('click', () => {
+      telLevel = b.dataset.level;
+      telModesEl.querySelectorAll('button').forEach(x =>
+        x.setAttribute('aria-pressed', String(x === b)));
+      telDeck = [];
+      telReset();
+    });
+  });
+
+  function telDraw(){
+    if(telDeck.length === 0){
+      telDeck = TEL_WORDS[telLevel].slice();
+      for(let i = telDeck.length - 1; i > 0; i--){
+        const j = Math.floor(Math.random() * (i + 1));
+        [telDeck[i], telDeck[j]] = [telDeck[j], telDeck[i]];
+      }
+      /* 새로 섞은 덱의 첫 카드가 직전 단어와 겹치지 않게 */
+      if(telDeck.length > 1 && telDeck[telDeck.length - 1] === telPrev){
+        telDeck.unshift(telDeck.pop());
+      }
+    }
+    telWord = telDeck.pop();
+    telPrev = telWord;
+  }
+
+  function telReady(){
+    ctx();
+    telDraw();
+    big.className = 'big qmark';
+    big.textContent = '?';
+    if(soundOn) tone(660, 0, 0.15, 0.18);
+    hint.innerHTML = '그리는 사람만 <b>단어 확인</b>을 누르세요!<br>다른 사람은 화면을 보면 안 돼요 🙈';
+    actions.innerHTML =
+      '<button class="btn btn-start" id="telRevealBtn">단어 확인</button>' +
+      '<button class="btn btn-reset" id="telHomeBtn">처음으로</button>';
+    document.getElementById('telRevealBtn').addEventListener('click', telReveal);
+    document.getElementById('telHomeBtn').addEventListener('click', telReset);
+  }
+
+  function telReveal(){
+    big.className = 'big word';
+    big.textContent = telWord;
+    chimeReveal();
+    hint.innerHTML = '이 단어를 <b>그림으로만</b> 표현하세요! (글자·숫자 금지)<br>다 그렸으면 다음 사람을 위해 「다음 카드」를 누르세요';
+    actions.innerHTML =
+      '<button class="btn btn-next" id="telNextBtn">다음 카드</button>' +
+      '<button class="btn btn-reset" id="telHomeBtn2">처음으로</button>';
+    document.getElementById('telNextBtn').addEventListener('click', telReady);
+    document.getElementById('telHomeBtn2').addEventListener('click', telReset);
+  }
+
+  function telReset(){
+    big.className = 'big';
+    big.textContent = '';
+    verdictEl.textContent = '';
+    verdictEl.className = 'verdict';
+    hint.innerHTML = '「카드 뽑기」를 누르면 <b>' + TEL_LEVEL_NAMES[telLevel] + '</b> 난이도의 단어 카드가 준비됩니다.<br>그림 → 추측 → 그림으로 이어지는 텔레스트레이션을 즐겨 보세요!';
+    actions.innerHTML = '<button class="btn btn-start" id="telDrawBtn">카드 뽑기</button>';
+    document.getElementById('telDrawBtn').addEventListener('click', telReady);
+  }
 
   /* ── 모드 ── */
   function setMode(m){
