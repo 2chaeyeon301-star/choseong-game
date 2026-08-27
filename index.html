@@ -422,6 +422,9 @@
   const mode2Btn   = document.getElementById('mode2');
 
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  /* iPadOS는 데스크톱 사파리로 위장하므로 터치 지점 수로도 판별 */
+  const IS_IOS = /iP(ad|hone|od)/.test(navigator.userAgent) ||
+                 (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
   let mode = 1;
   let running = false;
@@ -443,8 +446,16 @@
 
   /* ── 사운드 ── */
   function ctx(){
-    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if(audioCtx.state === 'suspended') audioCtx.resume();
+    if(!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      /* iOS 오디오 잠금 해제 — 사용자 제스처 안에서 무음 버퍼를 한 번 재생해야 이후 소리가 난다 */
+      const buf = audioCtx.createBuffer(1, 1, 22050);
+      const src = audioCtx.createBufferSource();
+      src.buffer = buf;
+      src.connect(audioCtx.destination);
+      src.start(0);
+    }
+    if(audioCtx.state !== 'running') audioCtx.resume();
     return audioCtx;
   }
   function tone(freq, start, dur, vol, type){
@@ -679,7 +690,7 @@
     if(running) return;
     running = true;
     pauseListening();
-    stopRecogOnly();       // 카운트다운 동안 마이크를 꺼서 Windows 통신 감지 음소거를 피한다
+    if(!IS_IOS) stopRecogOnly();   // Windows 통신 감지 음소거 회피 — iOS는 인식을 유지해야 허용창이 다시 뜨지 않음
     answers = [];          // 새 초성마다 정답 리스트 리셋
     renderAnswers();
     mode1Btn.disabled = mode2Btn.disabled = true;
@@ -756,7 +767,8 @@
     actions.innerHTML = '<button class="btn btn-start" id="startBtn">시 작</button>';
     document.getElementById('startBtn').addEventListener('click', () => {
       ctx();
-      round();   // 마이크는 초성 공개 후에 켜진다 — localhost에서는 권한이 영구 기억되어 허용창이 다시 뜨지 않음
+      if(IS_IOS) startRecog();   // iOS는 터치 순간에 인식을 시작해야 허용창이 시작 시점에 뜬다
+      round();                   // 그 외 환경에서는 초성 공개 후에 마이크가 켜진다
     });
     lockModes(false);
   }
