@@ -135,6 +135,20 @@
     .btn{font-size:19px; padding:13px 30px;}
     .hint{font-size:14px;}
   }
+  /* 화면 높이가 낮은 환경(가로 모드 등) — 버튼까지 한 화면에 들어오도록 축소 */
+  @media (max-height:780px){
+    body{padding:10px 10px 16px;}
+    .modes{margin-top:12px;}
+    .stage{margin-top:14px; min-height:300px; gap:8px;}
+    .bigWrap{height:clamp(96px, 21vh, 190px); padding:6px 0;}
+    .big{font-size:clamp(52px, min(30vw, 17vh), 150px);}
+    .big.two{font-size:clamp(44px, min(24vw, 17vh), 140px);}
+    .hint{font-size:14px; line-height:1.5;}
+    .btn{font-size:18px; padding:11px 30px;}
+    .btn-reset{padding:11px 18px;}
+    .answers{margin-top:12px; min-height:36px;}
+    .chips{max-height:50px;}
+  }
   .stage::before{
     content:"";
     position:absolute;
@@ -154,8 +168,8 @@
 
   /* 대형 표시 영역 */
   .bigWrap{
-    height:clamp(130px, 30vh, 300px);
-    padding:12px 0;
+    height:clamp(125px, 28vh, 280px);
+    padding:10px 0;
     max-width:100%;
     display:flex;
     align-items:center;
