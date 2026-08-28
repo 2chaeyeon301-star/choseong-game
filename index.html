@@ -1404,10 +1404,11 @@
     }
     return audioCtx;
   }
-  /* 어떤 터치/클릭에서든 오디오 잠금을 풀어주는 보험 (iOS 대응) */
+  /* 첫 터치/클릭이 어디든 즉시 오디오를 켜고 배경음악을 시작한다 (브라우저 자동재생 정책상 최선) */
   ['click', 'touchend'].forEach(ev =>
     document.addEventListener(ev, () => {
-      if(audioCtx && audioCtx.state !== 'running') audioCtx.resume().catch(() => {});
+      if(soundOn) ctx();
+      else if(audioCtx && audioCtx.state !== 'running') audioCtx.resume().catch(() => {});
     }, {passive:true}));
   function tone(freq, start, dur, vol, type){
     const ac = ctx();
