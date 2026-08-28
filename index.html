@@ -488,6 +488,49 @@
     white-space:nowrap;
   }
 
+  /* 다음 힌트 카운트다운 배지 */
+  .hintTimer{
+    background:rgba(255,201,60,.12);
+    border:1px solid rgba(255,201,60,.4);
+    color:var(--amber);
+    border-radius:999px;
+    padding:6px 16px;
+    font-size:14px;
+  }
+  .hintTimer b{
+    font-family:var(--display);
+    font-weight:400;
+    font-size:16px;
+    font-variant-numeric:tabular-nums;
+  }
+
+  /* 정답 팀 선택 */
+  .teamPick{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    justify-content:center;
+    flex-wrap:wrap;
+    min-height:36px;
+  }
+  .teamPick .tpLabel{color:var(--text); font-size:16px;}
+  .teamPick button{
+    border-radius:999px;
+    padding:9px 18px;
+    font-family:var(--body);
+    font-size:15px;
+    cursor:pointer;
+    border:1px solid var(--panel-edge);
+    background:var(--ground-deep);
+    color:var(--text);
+    transition:transform .12s, filter .15s;
+  }
+  .teamPick button:hover{filter:brightness(1.2); transform:translateY(-1px);}
+  .teamPick button[data-team="A"]{border-color:var(--amber); color:var(--amber);}
+  .teamPick button[data-team="B"]{border-color:#5AA7FF; color:#5AA7FF;}
+  .teamPick button[data-team="skip"]{color:var(--text-dim);}
+  .teamPick button:focus-visible{outline:2px solid var(--mint); outline-offset:2px;}
+
   .verdict{
     min-height:30px;
     font-size:19px;
@@ -655,6 +698,13 @@
   <div class="listen" id="listenRow" hidden>
     <span class="micPill" id="micPill">듣는 중</span>
     <span class="heard" id="heard"></span>
+  </div>
+  <div class="hintTimer" id="hintTimerBadge" hidden>다음 힌트까지 <b id="hintTimerNum">10</b>초</div>
+  <div class="teamPick" id="teamPick" hidden>
+    <span class="tpLabel" id="teamPickLabel"></span>
+    <button data-team="A">창희 없는 창희팀</button>
+    <button data-team="B">수연 없는 수연팀</button>
+    <button data-team="skip">패스</button>
   </div>
   <p class="verdict" id="verdict"></p>
   <p class="hint" id="hint"></p>
@@ -1102,6 +1152,7 @@
 
   /* ── 음성 인식 (푸시투톡: 「정답 외치기」를 누른 뒤 한 문장만 듣는다) ── */
   let listening = false;
+  let listenEndHook = null;   // 듣기가 스스로 끝났을 때 호출 (3힌트 퀴즈의 카운트다운 재개용)
 
   function listenOnce(onFinal){
     if(!SR || !micOn || listening) return;
@@ -1143,6 +1194,7 @@
       recog = null;
       bgmDuck(false);
       updateSpeakUI();
+      if(listenEndHook) listenEndHook();
     };
     listening = true;
     bgmDuck(true);   // 듣는 동안 배경음악을 줄여 인식 방해 방지
@@ -1179,12 +1231,18 @@
     }
   }
   /* 정답 외치기 버튼 공통 배선 — 누르면 듣기 시작, 듣는 중에 다시 누르면 취소 */
-  function wireSpeakBtn(onFinal){
+  function wireSpeakBtn(onFinal, onStartListen){
     const sb = document.getElementById('speakBtn');
     if(!sb) return;
     sb.addEventListener('click', () => {
       ctx();
-      if(listening){ stopRecogOnly(); updateSpeakUI(); return; }
+      if(listening){
+        stopRecogOnly();
+        updateSpeakUI();
+        if(listenEndHook) listenEndHook();   // 듣기 취소 시에도 카운트다운 재개
+        return;
+      }
+      if(onStartListen) onStartListen();
       listenOnce(onFinal);
     });
   }
@@ -1225,6 +1283,7 @@
     renderAnswers();
     chimePass();
     showVerdict('✓ 통과! 「' + word + '」', 'ok');
+    askTeam(1);
   }
   function reject(j){
     buzzFail();
@@ -1279,6 +1338,33 @@
   document.getElementById('scoreReset').addEventListener('click', () => {
     scores.A = 0; scores.B = 0;
     renderScore('A'); renderScore('B');
+  });
+
+  /* ── 정답 팀 선택 → 자동 점수 반영 ── */
+  const teamPick = document.getElementById('teamPick');
+  const teamPickLabel = document.getElementById('teamPickLabel');
+  const TEAM_NAMES = { A:'창희 없는 창희팀', B:'수연 없는 수연팀' };
+  let pendingPts = 0;
+
+  function askTeam(pts){
+    pendingPts = pts;
+    teamPickLabel.textContent = '+' + pts + '점 — 어느 팀이 맞췄나요?';
+    teamPick.hidden = false;
+  }
+  function hideTeamPick(){
+    teamPick.hidden = true;
+  }
+  teamPick.addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if(!b) return;
+    hideTeamPick();
+    const t = b.dataset.team;
+    if(t === 'A' || t === 'B'){
+      scores[t] += pendingPts;
+      renderScore(t);
+      chimePass();
+      showVerdict('🏆 ' + TEAM_NAMES[t] + ' +' + pendingPts + '점! (현재 ' + scores[t] + '점)', 'ok');
+    }
   });
 
   /* ── 타이머 (팝업) ── */
@@ -1365,6 +1451,9 @@
   function setGame(g){
     if(running || g === gameMode) return;
     gameMode = g;
+    hideTeamPick();
+    hintTimerClear();
+    listenEndHook = null;
     gameChoBtn.setAttribute('aria-pressed', String(g === 'cho'));
     gameTelBtn.setAttribute('aria-pressed', String(g === 'tel'));
     gameEmoBtn.setAttribute('aria-pressed', String(g === 'emo'));
@@ -1444,6 +1533,7 @@
   function emoQuestion(){
     ctx();
     stopRecogOnly();
+    hideTeamPick();
     emoDraw();
     big.className = 'big emoji';
     big.textContent = emoItem.e;
@@ -1464,7 +1554,8 @@
     big.className = 'big word title';
     big.textContent = emoItem.a;
     chimePass();
-    hint.innerHTML = emoItem.e + '<br>맞히셨나요? 다음 문제로 넘어가 보세요!';
+    hint.innerHTML = emoItem.e + '<br>맞춘 팀을 선택하면 1점이 자동으로 올라갑니다!';
+    askTeam(1);
     actions.innerHTML =
       '<button class="btn btn-start" id="emoNextBtn">다음 문제</button>' +
       '<button class="btn btn-reset" id="emoHomeBtn2">처음으로</button>';
@@ -1474,6 +1565,7 @@
 
   function emoReset(){
     stopRecogOnly();
+    hideTeamPick();
     listenRow.hidden = true;
     big.className = 'big';
     big.textContent = '';
@@ -1489,6 +1581,36 @@
   let hintDeck = [];
   let hintItem = null;
   let hintShown = 1;
+
+  /* 10초 안에 정답 외치기를 누르지 않으면 자동으로 다음 힌트 */
+  const hintTimerBadge = document.getElementById('hintTimerBadge');
+  const hintTimerNum = document.getElementById('hintTimerNum');
+  let hintTimerInt = null;
+  let hintTimerLeft = 10;
+
+  function hintTimerStart(){
+    hintTimerStop();
+    if(hintShown >= 3){ hintTimerBadge.hidden = true; return; }
+    hintTimerLeft = 10;
+    hintTimerNum.textContent = hintTimerLeft;
+    hintTimerBadge.hidden = false;
+    hintTimerInt = setInterval(() => {
+      hintTimerLeft--;
+      if(hintTimerLeft <= 0){
+        hintMore();   // hintMore가 카운트다운을 다시 시작한다
+      } else {
+        hintTimerNum.textContent = hintTimerLeft;
+      }
+    }, 1000);
+  }
+  function hintTimerStop(){
+    clearInterval(hintTimerInt);
+    hintTimerInt = null;
+  }
+  function hintTimerClear(){
+    hintTimerStop();
+    hintTimerBadge.hidden = true;
+  }
 
   hintModesEl.querySelectorAll('button').forEach(b => {
     b.addEventListener('click', () => {
@@ -1521,6 +1643,7 @@
   function hintQuestion(){
     ctx();
     stopRecogOnly();
+    hideTeamPick();
     hintDraw();
     hintShown = 1;
     renderHintLines();
@@ -1531,21 +1654,25 @@
       '<button class="btn btn-next" id="hintMoreBtn">힌트 더 보기</button>' +
       '<button class="btn btn-reset" id="hintAnswerBtn">정답 공개</button>' +
       '<button class="btn btn-reset" id="hintHomeBtn">처음으로</button>';
-    wireSpeakBtn(checkHintAnswer);
+    wireSpeakBtn(checkHintAnswer, hintTimerStop);   // 듣는 동안 카운트다운 일시정지
+    listenEndHook = hintTimerStart;                  // 듣기가 끝나면 카운트다운 재개
     document.getElementById('hintMoreBtn').addEventListener('click', hintMore);
     document.getElementById('hintAnswerBtn').addEventListener('click', hintAnswer);
     document.getElementById('hintHomeBtn').addEventListener('click', hintReset);
+    hintTimerStart();
   }
 
   function hintMore(){
     if(hintShown >= 3) return;
     hintShown++;
     renderHintLines();
-    if(soundOn) tone(660, 0, 0.12, 0.15);
+    if(soundOn){ ctx(); tone(660, 0, 0.12, 0.15); }
     if(hintShown >= 3){
       const mb = document.getElementById('hintMoreBtn');
-      mb.disabled = true;
-      mb.style.opacity = '.4';
+      if(mb){ mb.disabled = true; mb.style.opacity = '.4'; }
+      hintTimerClear();
+    } else {
+      hintTimerStart();
     }
   }
 
@@ -1553,8 +1680,10 @@
     heard.textContent = '“' + transcript.trim() + '”';
     if(!normTitle(transcript)) return;
     if(titleMatch(transcript, hintItem)){
+      const pts = 4 - hintShown;
+      listenEndHook = null;
       stopRecogOnly();
-      showVerdict('✓ 정답! (힌트 ' + hintShown + '개 → ' + (4 - hintShown) + '점)', 'ok');
+      showVerdict('✓ 정답! (힌트 ' + hintShown + '개 → ' + pts + '점)', 'ok');
       hintAnswer();
     } else {
       buzzFail();
@@ -1563,27 +1692,33 @@
   }
 
   function hintAnswer(){
+    listenEndHook = null;
+    hintTimerClear();
     stopRecogOnly();
     listenRow.hidden = true;
     big.className = 'big word title';
     big.textContent = hintItem.a;
     chimePass();
-    hint.innerHTML = '힌트 ' + hintShown + '개 만에 공개! 맞춘 팀에 <b>' + (4 - hintShown) + '점</b>을 주세요 🏆';
+    hint.innerHTML = '힌트 ' + hintShown + '개 만에 공개! 맞춘 팀을 선택하면 <b>' + (4 - hintShown) + '점</b>이 자동으로 올라갑니다 🏆';
     actions.innerHTML =
       '<button class="btn btn-start" id="hintNextBtn">다음 문제</button>' +
       '<button class="btn btn-reset" id="hintHomeBtn2">처음으로</button>';
     document.getElementById('hintNextBtn').addEventListener('click', hintQuestion);
     document.getElementById('hintHomeBtn2').addEventListener('click', hintReset);
+    askTeam(4 - hintShown);
   }
 
   function hintReset(){
+    listenEndHook = null;
+    hintTimerClear();
+    hideTeamPick();
     stopRecogOnly();
     listenRow.hidden = true;
     big.className = 'big';
     big.textContent = '';
     verdictEl.textContent = '';
     verdictEl.className = 'verdict';
-    hint.innerHTML = '「문제 뽑기」를 누르면 <b>' + HINT_CAT_NAMES[hintCat] + '</b> 문제의 첫 번째 힌트가 공개됩니다.<br>힌트가 적을 때 맞출수록 높은 점수를 얻어요! (3점 → 2점 → 1점)';
+    hint.innerHTML = '「문제 뽑기」를 누르면 <b>' + HINT_CAT_NAMES[hintCat] + '</b> 문제의 첫 번째 힌트가 공개됩니다.<br>10초 안에 정답 외치기를 누르지 않으면 자동으로 다음 힌트가 공개돼요! (3점 → 2점 → 1점)';
     actions.innerHTML = '<button class="btn btn-start" id="hintDrawBtn">문제 뽑기</button>';
     document.getElementById('hintDrawBtn').addEventListener('click', hintQuestion);
   }
@@ -1642,11 +1777,15 @@
     actions.innerHTML =
       '<button class="btn btn-next" id="telNextBtn">다음 카드</button>' +
       '<button class="btn btn-reset" id="telHomeBtn2">처음으로</button>';
-    document.getElementById('telNextBtn').addEventListener('click', telReady);
+    document.getElementById('telNextBtn').addEventListener('click', () => {
+      askTeam(1);   // 한 바퀴 끝 — 맞춘 팀에 점수를 주고 다음 카드로
+      telReady();
+    });
     document.getElementById('telHomeBtn2').addEventListener('click', telReset);
   }
 
   function telReset(){
+    hideTeamPick();
     big.className = 'big';
     big.textContent = '';
     verdictEl.textContent = '';
@@ -1692,6 +1831,7 @@
     running = true;
     pauseListening();
     stopRecogOnly();
+    hideTeamPick();
     answers = [];          // 새 초성마다 정답 리스트 리셋
     renderAnswers();
     mode1Btn.disabled = mode2Btn.disabled = true;
@@ -1758,6 +1898,7 @@
 
   function resetStage(){
     pauseListening();
+    hideTeamPick();
     big.className = 'big';
     big.textContent = '';
     verdictEl.textContent = '';
