@@ -2,9 +2,9 @@
 <html lang="ko">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="apple-mobile-web-app-title" content="파티 룰렛">
+<meta name="apple-mobile-web-app-title" content="채연 룰렛">
 <link rel="apple-touch-icon" href="icon.png">
-<title>파티 룰렛</title>
+<title>채연 룰렛</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Gowun+Dodum&display=swap">
 <style>
   :root{
@@ -66,7 +66,7 @@
     color:var(--text-dim);
     letter-spacing:2px;
   }
-  .headBtns{display:flex; gap:8px;}
+  .headBtns{display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;}
   .pillBtn{
     background:var(--panel);
     border:1px solid var(--panel-edge);
@@ -591,10 +591,11 @@
 
 <header>
   <div class="brand">
-    <h1>파티 룰렛<span class="dot">.</span></h1>
+    <h1>채연 룰렛<span class="dot">.</span></h1>
     <span class="tag">PARTY GAMES</span>
   </div>
   <div class="headBtns">
+    <button class="pillBtn" id="bgmBtn" aria-pressed="false">🎵 배경음악 꺼짐</button>
     <button class="pillBtn" id="timerTog">⏱️ 타이머</button>
     <button class="pillBtn" id="scoreTog">🏆 점수판</button>
     <button class="pillBtn" id="micBtn" aria-pressed="true">🎤 음성 인식 켜짐</button>
@@ -918,6 +919,76 @@
     tone(185, 0.05, 0.28, 0.12, 'square');
   }
 
+  /* ── 배경음악 (파일 없이 Web Audio로 합성하는 루프) ── */
+  const bgmBtn = document.getElementById('bgmBtn');
+  let bgmOn = false;
+  let bgmGain = null;
+  let bgmTimer = null;
+  let bgmStep = 0;
+  let bgmNext = 0;
+
+  const BGM_STEP = 60 / 96 / 2;   // 96BPM 8분음표
+  /* Cmaj7 → Am7 → Fmaj7 → G6 진행, 각 코드 8스텝 */
+  const BGM_CHORDS = [
+    [261.63, 329.63, 392.00, 493.88],
+    [220.00, 261.63, 329.63, 392.00],
+    [174.61, 220.00, 261.63, 329.63],
+    [196.00, 246.94, 293.66, 329.63]
+  ];
+  const BGM_ARP = [0, 1, 2, 3, 2, 3, 1, 2];
+
+  function bgmNote(freq, start, dur, vol, type){
+    const ac = ctx();
+    const o = ac.createOscillator();
+    const g = ac.createGain();
+    o.type = type || 'triangle';
+    o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, start);
+    g.gain.exponentialRampToValueAtTime(vol, start + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+    o.connect(g).connect(bgmGain);
+    o.start(start);
+    o.stop(start + dur + 0.05);
+  }
+  function bgmScheduleStep(step, t){
+    const chord = BGM_CHORDS[Math.floor(step / 8)];
+    bgmNote(chord[BGM_ARP[step % 8]], t, 0.34, 0.045, 'triangle');
+    if(step % 8 === 0) bgmNote(chord[0] / 2, t, 1.4, 0.075, 'sine');          // 베이스
+    if(step % 8 === 4) bgmNote(chord[3] * 2, t, 0.5, 0.016, 'sine');          // 반짝임
+  }
+  function bgmScheduler(){
+    const ac = ctx();
+    while(bgmNext < ac.currentTime + 0.35){
+      bgmScheduleStep(bgmStep, bgmNext);
+      bgmNext += BGM_STEP;
+      bgmStep = (bgmStep + 1) % 32;
+    }
+  }
+  function bgmDuck(down){
+    if(!bgmGain) return;
+    bgmGain.gain.setTargetAtTime(down ? 0.15 : 1, ctx().currentTime, 0.15);
+  }
+  bgmBtn.addEventListener('click', () => {
+    bgmOn = !bgmOn;
+    bgmBtn.textContent = bgmOn ? '🎵 배경음악 켜짐' : '🎵 배경음악 꺼짐';
+    bgmBtn.setAttribute('aria-pressed', String(bgmOn));
+    if(bgmOn){
+      const ac = ctx();
+      if(!bgmGain){
+        bgmGain = ac.createGain();
+        bgmGain.gain.value = 1;
+        bgmGain.connect(ac.destination);
+      }
+      bgmStep = 0;
+      bgmNext = ac.currentTime + 0.05;
+      bgmScheduler();
+      bgmTimer = setInterval(bgmScheduler, 150);
+    } else {
+      clearInterval(bgmTimer);
+      bgmTimer = null;
+    }
+  });
+
   soundBtn.addEventListener('click', () => {
     soundOn = !soundOn;
     soundBtn.textContent = soundOn ? '🔊 소리 켜짐' : '🔇 소리 꺼짐';
@@ -986,12 +1057,14 @@
     recog.onend = () => {
       listening = false;
       recog = null;
+      bgmDuck(false);
       updateSpeakUI();
     };
     listening = true;
+    bgmDuck(true);   // 듣는 동안 배경음악을 줄여 인식 방해 방지
     updateSpeakUI();
     try{ recog.start(); }
-    catch(err){ listening = false; recog = null; updateSpeakUI(); }
+    catch(err){ listening = false; recog = null; bgmDuck(false); updateSpeakUI(); }
   }
   function stopRecogOnly(){
     if(recog){
@@ -1001,6 +1074,7 @@
       recog = null;
     }
     listening = false;
+    bgmDuck(false);
   }
   function pauseListening(){
     answerActive = false;
