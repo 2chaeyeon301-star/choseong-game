@@ -391,6 +391,25 @@
     color:var(--amber);
     text-shadow:0 0 50px rgba(255,201,60,.4);
   }
+  /* 3힌트 퀴즈 — 힌트 문장이 쌓이는 박스 */
+  .big.hintbox{
+    font-family:var(--body);
+    font-size:clamp(16px, min(3vw, 3vh), 24px);
+    line-height:1.75;
+    white-space:normal;
+    text-align:left;
+    max-width:min(560px, 90vw);
+    color:var(--text);
+    text-shadow:none;
+    letter-spacing:0;
+  }
+  .big.hintbox .hLabel{
+    font-family:var(--display);
+    color:var(--amber);
+    margin-right:10px;
+    letter-spacing:1px;
+  }
+  .big.hintbox div{animation:reveal .4s ease both;}
   /* 이모지 퀴즈 정답 — 긴 제목도 줄바꿈되며 화면 안에 들어오게 */
   .big.title{
     font-size:clamp(28px, min(9vw, 9vh), 72px);
@@ -491,7 +510,7 @@
   }
 
   /* ── 버튼 ─────────────────────────── */
-  .actions{display:flex; gap:14px;}
+  .actions{display:flex; gap:14px; flex-wrap:wrap; justify-content:center;}
   .btn{
     font-family:var(--display);
     font-weight:400;
@@ -595,10 +614,9 @@
     <span class="tag">PARTY GAMES</span>
   </div>
   <div class="headBtns">
-    <button class="pillBtn" id="bgmBtn" aria-pressed="false">🎵 배경음악 꺼짐</button>
     <button class="pillBtn" id="timerTog">⏱️ 타이머</button>
     <button class="pillBtn" id="scoreTog">🏆 점수판</button>
-    <button class="pillBtn" id="micBtn" aria-pressed="true">🎤 음성 인식 켜짐</button>
+    <button class="pillBtn" id="micBtn" aria-pressed="true">🎤 음성인식</button>
     <button class="pillBtn" id="soundBtn" aria-pressed="true">🔊 소리 켜짐</button>
   </div>
 </header>
@@ -608,6 +626,7 @@
     <button id="gameCho" aria-pressed="true">🗣️ 초성게임</button>
     <button id="gameTel" aria-pressed="false">🎨 텔레스트레이션</button>
     <button id="gameEmo" aria-pressed="false">🎬 이모지 퀴즈</button>
+    <button id="gameHint" aria-pressed="false">🕵️ 3힌트 퀴즈</button>
   </div>
   <div class="modes" id="choModes" role="group" aria-label="초성게임 모드">
     <button id="mode1" aria-pressed="true">초성 한 글자</button>
@@ -621,6 +640,12 @@
   <div class="modes" id="emoModes" role="group" aria-label="이모지 퀴즈 종류" hidden>
     <button data-cat="movie" aria-pressed="true">영화</button>
     <button data-cat="drama" aria-pressed="false">드라마</button>
+  </div>
+  <div class="modes" id="hintModes" role="group" aria-label="3힌트 퀴즈 종류" hidden>
+    <button data-cat="person" aria-pressed="true">인물</button>
+    <button data-cat="food" aria-pressed="false">음식</button>
+    <button data-cat="movie" aria-pressed="false">영화</button>
+    <button data-cat="place" aria-pressed="false">장소</button>
   </div>
 </div>
 
@@ -826,6 +851,67 @@
     ]
   };
   const EMO_CAT_NAMES = { movie:'영화', drama:'드라마' };
+
+  /* 3힌트 퀴즈 문제 은행 — h: 힌트 3개(모호→구체), a: 정답, al: 별칭 */
+  const HINT_QUIZ = {
+    person: [
+      {a:'세종대왕', al:['세종'], h:['조선의 네 번째 왕입니다','과학자 장영실을 아꼈습니다','한글을 만들었습니다']},
+      {a:'이순신', al:['이순신 장군'], h:['조선의 장군입니다','거북선을 이끌었습니다','명량해전에서 12척으로 승리했습니다']},
+      {a:'유재석', h:['국민 MC라고 불립니다','별명이 메뚜기입니다','무한도전과 런닝맨을 진행했습니다']},
+      {a:'손흥민', h:['축구선수입니다','영국 프리미어리그에서 뛰었습니다','대한민국 축구대표팀 주장입니다']},
+      {a:'아이유', h:['가수이자 배우입니다','본명은 이지은입니다','좋은 날의 3단 고음으로 유명합니다']},
+      {a:'김연아', h:['겨울 스포츠 선수였습니다','밴쿠버 올림픽 금메달리스트입니다','피겨여왕이라고 불립니다']},
+      {a:'방탄소년단', al:['BTS', '비티에스'], h:['7인조 그룹입니다','팬클럽 이름은 아미입니다','다이너마이트로 빌보드 1위를 했습니다']},
+      {a:'백종원', h:['요리연구가이자 사업가입니다','더본코리아 대표입니다','골목식당에서 솔루션을 줬습니다']},
+      {a:'아인슈타인', h:['물리학자입니다','혀를 내민 사진이 유명합니다','상대성이론을 만들었습니다']},
+      {a:'에디슨', h:['발명가입니다','1%의 영감과 99%의 노력이라는 말을 남겼습니다','전구를 발명했습니다']},
+      {a:'피카소', h:['화가입니다','스페인 출신입니다','입체파의 대표 화가로 게르니카를 그렸습니다']},
+      {a:'신사임당', h:['조선의 예술가입니다','율곡 이이의 어머니입니다','5만원권 지폐에 그려져 있습니다']}
+    ],
+    food: [
+      {a:'김치찌개', h:['한국인의 대표 찌개입니다','돼지고기와 두부가 어울립니다','묵은지로 끓이면 더 맛있습니다']},
+      {a:'삼겹살', h:['회식의 단골 메뉴입니다','불판에 구워 먹습니다','상추에 싸서 먹는 돼지고기입니다']},
+      {a:'떡볶이', h:['길거리 대표 간식입니다','주재료는 쌀떡입니다','빨간 고추장 소스에 버무립니다']},
+      {a:'비빔밥', h:['전주가 유명합니다','고추장에 비벼 먹습니다','나물과 계란을 밥 위에 올립니다']},
+      {a:'냉면', h:['여름 대표 음식입니다','물과 비빔 두 종류가 있습니다','살얼음 육수에 면을 말아 먹습니다']},
+      {a:'치킨', h:['야식의 왕입니다','맥주와 환상의 짝꿍입니다','후라이드와 양념으로 나뉩니다']},
+      {a:'짜장면', h:['중국집 대표 메뉴입니다','이사하는 날 많이 먹습니다','검은 춘장 소스 면요리입니다']},
+      {a:'삼계탕', h:['복날에 먹는 보양식입니다','인삼과 대추가 들어갑니다','닭 속에 찹쌀을 넣고 끓입니다']},
+      {a:'라면', h:['한국인의 소울푸드입니다','물 550ml에 스프를 넣습니다','끓이는 데 4분이면 충분합니다']},
+      {a:'붕어빵', h:['겨울 길거리 간식입니다','머리부터 먹을지 꼬리부터 먹을지 고민됩니다','물고기 모양 틀에 팥을 넣고 굽습니다']},
+      {a:'초밥', h:['일본 대표 음식입니다','와사비와 함께 먹습니다','식초로 간한 밥 위에 생선을 올립니다']},
+      {a:'마라탕', h:['혀가 얼얼해지는 음식입니다','중국 쓰촨에서 왔습니다','원하는 재료를 골라 담아 끓입니다']}
+    ],
+    movie: [
+      {a:'기생충', h:['아카데미 작품상을 받았습니다','반지하에 사는 가족이 나옵니다','봉준호 감독의 작품입니다']},
+      {a:'극한직업', h:['형사들이 나오는 코미디입니다','잠복근무를 위해 치킨집을 차립니다','수원왕갈비통닭이 등장합니다']},
+      {a:'부산행', h:['기차 안에서 벌어지는 이야기입니다','좀비가 나옵니다','공유가 딸과 함께 부산으로 향합니다']},
+      {a:'타이타닉', h:['실화를 바탕으로 했습니다','침몰하는 배가 나옵니다','잭과 로즈의 사랑 이야기입니다']},
+      {a:'겨울왕국', h:['디즈니 애니메이션입니다','자매가 주인공입니다','엘사가 Let It Go를 부릅니다']},
+      {a:'해리포터', h:['영국 소설이 원작입니다','호그와트 마법학교가 나옵니다','이마에 번개 흉터가 있는 소년입니다']},
+      {a:'어벤져스', h:['히어로들이 모두 모입니다','타노스와 싸웁니다','마블의 대표 시리즈입니다']},
+      {a:'알라딘', h:['아그라바 왕국이 배경입니다','요술램프가 나옵니다','지니가 소원 세 개를 들어줍니다']},
+      {a:'인터스텔라', h:['우주를 배경으로 합니다','옥수수밭과 블랙홀이 나옵니다','아버지가 딸에게 시계를 남깁니다']},
+      {a:'7번방의 선물', h:['교도소가 배경입니다','아빠와 딸의 이야기입니다','7번방 죄수들이 딸을 몰래 들여보냅니다']},
+      {a:'아바타', h:['제임스 카메론 감독 작품입니다','판도라 행성이 배경입니다','파란 피부의 나비족이 나옵니다']},
+      {a:'명량', h:['한국 영화 관객수 1위였습니다','조선 수군의 해전을 그렸습니다','신에게는 아직 12척의 배가 있습니다']}
+    ],
+    place: [
+      {a:'에펠탑', h:['유럽의 랜드마크입니다','1889년 만국박람회 때 세워졌습니다','프랑스 파리에 있는 철탑입니다']},
+      {a:'제주도', h:['한국에서 가장 큰 섬입니다','돌하르방이 있습니다','한라산이 있는 관광지입니다']},
+      {a:'경복궁', h:['서울 한복판에 있습니다','조선의 법궁입니다','광화문 뒤에 있는 궁궐입니다']},
+      {a:'만리장성', h:['우주에서 보인다는 설이 있었습니다','중국에 있습니다','세계에서 가장 긴 성벽입니다']},
+      {a:'피라미드', h:['사막에 있습니다','파라오의 무덤입니다','이집트의 삼각형 건축물입니다']},
+      {a:'자유의 여신상', h:['미국 뉴욕에 있습니다','프랑스가 선물했습니다','횃불을 든 초록색 동상입니다']},
+      {a:'남산타워', al:['서울타워', 'N서울타워'], h:['서울이 한눈에 보입니다','연인들이 자물쇠를 걸어둡니다','케이블카를 타고 올라갑니다']},
+      {a:'에버랜드', h:['용인에 있는 테마파크입니다','티익스프레스가 유명합니다','판다 푸바오가 살았습니다']},
+      {a:'한강', h:['서울을 가로지릅니다','치맥과 즉석 라면의 성지입니다','63빌딩 옆을 흐르는 강입니다']},
+      {a:'부산', h:['대한민국 제2의 도시입니다','돼지국밥이 유명합니다','해운대 해수욕장이 있습니다']},
+      {a:'디즈니랜드', h:['세계 곳곳에 있는 테마파크입니다','미키마우스를 만날 수 있습니다','신데렐라 성이 상징입니다']},
+      {a:'백두산', h:['한반도에서 가장 높은 산입니다','정상에 천지가 있습니다','애국가 첫 소절에 나옵니다']}
+    ]
+  };
+  const HINT_CAT_NAMES = { person:'인물', food:'음식', movie:'영화', place:'장소' };
   const CHO_LIST = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
 
   const big        = document.getElementById('big');
@@ -846,9 +932,11 @@
   const gameChoBtn = document.getElementById('gameCho');
   const gameTelBtn = document.getElementById('gameTel');
   const gameEmoBtn = document.getElementById('gameEmo');
+  const gameHintBtn = document.getElementById('gameHint');
   const choModesEl = document.getElementById('choModes');
   const telModesEl = document.getElementById('telModes');
   const emoModesEl = document.getElementById('emoModes');
+  const hintModesEl = document.getElementById('hintModes');
 
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   /* iPadOS는 데스크톱 사파리로 위장하므로 터치 지점 수로도 판별 */
@@ -885,6 +973,7 @@
       src.start(0);
     }
     if(audioCtx.state !== 'running') audioCtx.resume();
+    if(soundOn && !bgmTimer) bgmStart();   // 소리가 켜져 있으면 첫 조작 때 배경음악도 함께 시작
     return audioCtx;
   }
   function tone(freq, start, dur, vol, type){
@@ -919,9 +1008,7 @@
     tone(185, 0.05, 0.28, 0.12, 'square');
   }
 
-  /* ── 배경음악 (파일 없이 Web Audio로 합성하는 루프) ── */
-  const bgmBtn = document.getElementById('bgmBtn');
-  let bgmOn = false;
+  /* ── 배경음악 (파일 없이 Web Audio로 합성하는 루프) — 🔊 소리 버튼에 통합 ── */
   let bgmGain = null;
   let bgmTimer = null;
   let bgmStep = 0;
@@ -968,38 +1055,35 @@
     if(!bgmGain) return;
     bgmGain.gain.setTargetAtTime(down ? 0.15 : 1, ctx().currentTime, 0.15);
   }
-  bgmBtn.addEventListener('click', () => {
-    bgmOn = !bgmOn;
-    bgmBtn.textContent = bgmOn ? '🎵 배경음악 켜짐' : '🎵 배경음악 꺼짐';
-    bgmBtn.setAttribute('aria-pressed', String(bgmOn));
-    if(bgmOn){
-      const ac = ctx();
-      if(!bgmGain){
-        bgmGain = ac.createGain();
-        bgmGain.gain.value = 1;
-        bgmGain.connect(ac.destination);
-      }
-      bgmStep = 0;
-      bgmNext = ac.currentTime + 0.05;
-      bgmScheduler();
-      bgmTimer = setInterval(bgmScheduler, 150);
-    } else {
-      clearInterval(bgmTimer);
-      bgmTimer = null;
+  function bgmStart(){
+    if(bgmTimer || !audioCtx) return;
+    if(!bgmGain){
+      bgmGain = audioCtx.createGain();
+      bgmGain.gain.value = 1;
+      bgmGain.connect(audioCtx.destination);
     }
-  });
+    bgmStep = 0;
+    bgmNext = audioCtx.currentTime + 0.05;
+    bgmTimer = setInterval(bgmScheduler, 150);   // 타이머를 먼저 걸어 ctx() 재진입을 막는다
+    bgmScheduler();
+  }
+  function bgmStop(){
+    clearInterval(bgmTimer);
+    bgmTimer = null;
+  }
 
   soundBtn.addEventListener('click', () => {
     soundOn = !soundOn;
     soundBtn.textContent = soundOn ? '🔊 소리 켜짐' : '🔇 소리 꺼짐';
     soundBtn.setAttribute('aria-pressed', String(soundOn));
-    if(soundOn) ctx();
+    if(soundOn) ctx();          // 효과음 + 배경음악 함께 켜기
+    else bgmStop();             // 함께 끄기
   });
 
   micBtn.addEventListener('click', () => {
     if(!SR) return;
     micOn = !micOn;
-    micBtn.textContent = micOn ? '🎤 음성 인식 켜짐' : '🎤 음성 인식 꺼짐';
+    micBtn.textContent = micOn ? '🎤 음성인식' : '🎤 음성인식 꺼짐';
     micBtn.setAttribute('aria-pressed', String(micOn));
     if(!micOn) stopRecogOnly();
     updateSpeakUI();
@@ -1284,9 +1368,11 @@
     gameChoBtn.setAttribute('aria-pressed', String(g === 'cho'));
     gameTelBtn.setAttribute('aria-pressed', String(g === 'tel'));
     gameEmoBtn.setAttribute('aria-pressed', String(g === 'emo'));
+    gameHintBtn.setAttribute('aria-pressed', String(g === 'hint'));
     choModesEl.hidden = g !== 'cho';
     telModesEl.hidden = g !== 'tel';
     emoModesEl.hidden = g !== 'emo';
+    hintModesEl.hidden = g !== 'hint';
     micBtn.hidden = g === 'tel';
     answersRow.hidden = g !== 'cho';
     if(g === 'cho'){
@@ -1295,12 +1381,15 @@
     } else {
       pauseListening();
       stopRecogOnly();
-      if(g === 'tel') telReset(); else emoReset();
+      if(g === 'tel') telReset();
+      else if(g === 'emo') emoReset();
+      else hintReset();
     }
   }
   gameChoBtn.addEventListener('click', () => setGame('cho'));
   gameTelBtn.addEventListener('click', () => setGame('tel'));
   gameEmoBtn.addEventListener('click', () => setGame('emo'));
+  gameHintBtn.addEventListener('click', () => setGame('hint'));
 
   /* ── 이모지 퀴즈 ── */
   let emoCat = 'movie';
@@ -1332,14 +1421,17 @@
   function normTitle(s){
     return s.toLowerCase().replace(/[^가-힣a-z0-9]/g, '');
   }
+  function titleMatch(transcript, item){
+    const t = normTitle(transcript);
+    if(!t) return false;
+    const targets = [item.a].concat(item.al || []).map(normTitle);
+    return targets.some(a =>
+      a.length > 0 && (t.includes(a) || (a.includes(t) && t.length >= Math.ceil(a.length / 2))));
+  }
   function checkEmoAnswer(transcript){
     heard.textContent = '“' + transcript.trim() + '”';
-    const t = normTitle(transcript);
-    if(!t) return;
-    const targets = [emoItem.a].concat(emoItem.al || []).map(normTitle);
-    const hit = targets.some(a =>
-      a.length > 0 && (t.includes(a) || (a.includes(t) && t.length >= Math.ceil(a.length / 2))));
-    if(hit){
+    if(!normTitle(transcript)) return;
+    if(titleMatch(transcript, emoItem)){
       stopRecogOnly();
       showVerdict('✓ 정답!', 'ok');
       emoAnswer();
@@ -1390,6 +1482,110 @@
     hint.innerHTML = '「문제 뽑기」를 누르면 <b>' + EMO_CAT_NAMES[emoCat] + '</b> 제목을 표현한 이모지 문제가 나옵니다.<br>다 함께 보고 정답을 외쳐 보세요!';
     actions.innerHTML = '<button class="btn btn-start" id="emoDrawBtn">문제 뽑기</button>';
     document.getElementById('emoDrawBtn').addEventListener('click', emoQuestion);
+  }
+
+  /* ── 3힌트 퀴즈 ── */
+  let hintCat = 'person';
+  let hintDeck = [];
+  let hintItem = null;
+  let hintShown = 1;
+
+  hintModesEl.querySelectorAll('button').forEach(b => {
+    b.addEventListener('click', () => {
+      hintCat = b.dataset.cat;
+      hintModesEl.querySelectorAll('button').forEach(x =>
+        x.setAttribute('aria-pressed', String(x === b)));
+      hintDeck = [];
+      hintReset();
+    });
+  });
+
+  function hintDraw(){
+    if(hintDeck.length === 0){
+      hintDeck = HINT_QUIZ[hintCat].slice();
+      for(let i = hintDeck.length - 1; i > 0; i--){
+        const j = Math.floor(Math.random() * (i + 1));
+        [hintDeck[i], hintDeck[j]] = [hintDeck[j], hintDeck[i]];
+      }
+    }
+    hintItem = hintDeck.pop();
+  }
+
+  function renderHintLines(){
+    big.className = 'big hintbox';
+    big.innerHTML = hintItem.h.slice(0, hintShown)
+      .map((h, i) => '<div><span class="hLabel">힌트' + (i + 1) + '</span>' + h + '</div>')
+      .join('');
+  }
+
+  function hintQuestion(){
+    ctx();
+    stopRecogOnly();
+    hintDraw();
+    hintShown = 1;
+    renderHintLines();
+    chimeReveal();
+    hint.innerHTML = '이 <b>' + HINT_CAT_NAMES[hintCat] + '</b>은(는) 무엇일까요? 힌트가 적을 때 맞출수록 고득점!<br>(힌트 1개 = 3점 · 2개 = 2점 · 3개 = 1점)';
+    actions.innerHTML =
+      (SR ? '<button class="btn btn-speak" id="speakBtn">🎤 정답 외치기</button>' : '') +
+      '<button class="btn btn-next" id="hintMoreBtn">힌트 더 보기</button>' +
+      '<button class="btn btn-reset" id="hintAnswerBtn">정답 공개</button>' +
+      '<button class="btn btn-reset" id="hintHomeBtn">처음으로</button>';
+    wireSpeakBtn(checkHintAnswer);
+    document.getElementById('hintMoreBtn').addEventListener('click', hintMore);
+    document.getElementById('hintAnswerBtn').addEventListener('click', hintAnswer);
+    document.getElementById('hintHomeBtn').addEventListener('click', hintReset);
+  }
+
+  function hintMore(){
+    if(hintShown >= 3) return;
+    hintShown++;
+    renderHintLines();
+    if(soundOn) tone(660, 0, 0.12, 0.15);
+    if(hintShown >= 3){
+      const mb = document.getElementById('hintMoreBtn');
+      mb.disabled = true;
+      mb.style.opacity = '.4';
+    }
+  }
+
+  function checkHintAnswer(transcript){
+    heard.textContent = '“' + transcript.trim() + '”';
+    if(!normTitle(transcript)) return;
+    if(titleMatch(transcript, hintItem)){
+      stopRecogOnly();
+      showVerdict('✓ 정답! (힌트 ' + hintShown + '개 → ' + (4 - hintShown) + '점)', 'ok');
+      hintAnswer();
+    } else {
+      buzzFail();
+      showVerdict('✗ 땡! 힌트를 더 보거나 다시 도전해 보세요', 'bad');
+    }
+  }
+
+  function hintAnswer(){
+    stopRecogOnly();
+    listenRow.hidden = true;
+    big.className = 'big word title';
+    big.textContent = hintItem.a;
+    chimePass();
+    hint.innerHTML = '힌트 ' + hintShown + '개 만에 공개! 맞춘 팀에 <b>' + (4 - hintShown) + '점</b>을 주세요 🏆';
+    actions.innerHTML =
+      '<button class="btn btn-start" id="hintNextBtn">다음 문제</button>' +
+      '<button class="btn btn-reset" id="hintHomeBtn2">처음으로</button>';
+    document.getElementById('hintNextBtn').addEventListener('click', hintQuestion);
+    document.getElementById('hintHomeBtn2').addEventListener('click', hintReset);
+  }
+
+  function hintReset(){
+    stopRecogOnly();
+    listenRow.hidden = true;
+    big.className = 'big';
+    big.textContent = '';
+    verdictEl.textContent = '';
+    verdictEl.className = 'verdict';
+    hint.innerHTML = '「문제 뽑기」를 누르면 <b>' + HINT_CAT_NAMES[hintCat] + '</b> 문제의 첫 번째 힌트가 공개됩니다.<br>힌트가 적을 때 맞출수록 높은 점수를 얻어요! (3점 → 2점 → 1점)';
+    actions.innerHTML = '<button class="btn btn-start" id="hintDrawBtn">문제 뽑기</button>';
+    document.getElementById('hintDrawBtn').addEventListener('click', hintQuestion);
   }
 
   /* ── 텔레스트레이션 ── */
