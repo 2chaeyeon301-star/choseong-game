@@ -488,6 +488,43 @@
     white-space:nowrap;
   }
 
+  /* 초성게임 라운드 타이머 (무대 우측 상단) */
+  .roundTimer{
+    position:absolute;
+    top:12px;
+    right:14px;
+    z-index:6;
+    display:flex;
+    gap:6px;
+    align-items:center;
+  }
+  .roundTimer button{
+    background:var(--ground-deep);
+    border:1px solid var(--panel-edge);
+    color:var(--text-dim);
+    border-radius:999px;
+    padding:6px 14px;
+    font-family:var(--body);
+    font-size:13px;
+    cursor:pointer;
+  }
+  .roundTimer button[aria-pressed="true"]{
+    background:var(--amber);
+    border-color:var(--amber);
+    color:#241500;
+  }
+  .roundTimer button:focus-visible{outline:2px solid var(--mint); outline-offset:2px;}
+  .rtLeft{
+    font-family:var(--display);
+    font-weight:400;
+    font-size:24px;
+    color:var(--amber);
+    min-width:42px;
+    text-align:center;
+    font-variant-numeric:tabular-nums;
+  }
+  .rtLeft.danger{color:var(--pink);}
+
   /* 다음 힌트 카운트다운 배지 */
   .hintTimer{
     background:rgba(255,201,60,.12);
@@ -693,6 +730,11 @@
 </div>
 
 <main class="stage" aria-live="polite">
+  <div class="roundTimer" id="roundTimer">
+    <button data-rt="30" aria-pressed="false">30초</button>
+    <button data-rt="60" aria-pressed="false">1분</button>
+    <span class="rtLeft" id="rtLeft" hidden>30</span>
+  </div>
   <div class="ring" id="ring"></div>
   <div class="bigWrap"><div class="big" id="big"></div></div>
   <div class="listen" id="listenRow" hidden>
@@ -1850,6 +1892,8 @@
     gameMode = g;
     hideTeamPick();
     hintTimerClear();
+    rtStop();
+    document.getElementById('roundTimer').hidden = g !== 'cho';
     listenEndHook = null;
     gameChoBtn.setAttribute('aria-pressed', String(g === 'cho'));
     gameTelBtn.setAttribute('aria-pressed', String(g === 'tel'));
@@ -2203,6 +2247,54 @@
   mode1Btn.addEventListener('click', () => setMode(1));
   mode2Btn.addEventListener('click', () => setMode(2));
 
+  /* ── 초성게임 라운드 타이머 (30초/1분 선택, 시간 경과 시 자동 다음 초성) ── */
+  const roundTimerEl = document.getElementById('roundTimer');
+  const rtLeftEl = document.getElementById('rtLeft');
+  let rtSec = 0;        // 0이면 타이머 미사용 (기존 방식 그대로)
+  let rtInt = null;
+  let rtRemain = 0;
+
+  roundTimerEl.querySelectorAll('button[data-rt]').forEach(b => {
+    b.addEventListener('click', () => {
+      const sec = parseInt(b.dataset.rt, 10);
+      rtSec = (rtSec === sec) ? 0 : sec;   // 같은 걸 다시 누르면 해제
+      roundTimerEl.querySelectorAll('button[data-rt]').forEach(x =>
+        x.setAttribute('aria-pressed', String(parseInt(x.dataset.rt, 10) === rtSec)));
+    });
+  });
+
+  function rtRender(){
+    rtLeftEl.textContent = rtRemain;
+    rtLeftEl.classList.toggle('danger', rtRemain <= 5);
+  }
+  function rtStop(){
+    clearInterval(rtInt);
+    rtInt = null;
+    rtLeftEl.hidden = true;
+  }
+  function rtStart(){
+    rtStop();
+    if(rtSec <= 0 || gameMode !== 'cho') return;
+    rtRemain = rtSec;
+    rtRender();
+    rtLeftEl.hidden = false;
+    rtInt = setInterval(() => {
+      rtRemain--;
+      if(rtRemain <= 0){
+        rtStop();
+        if(gameMode === 'cho' && answerActive){
+          if(soundOn) tone(523.25, 0, 0.2, 0.2);
+          running = false;
+          lockModes(false);
+          round();   // 시간 종료 → 자동으로 다음 초성
+        }
+      } else {
+        rtRender();
+        if(soundOn && rtRemain <= 3) tone(880, 0, 0.1, 0.15);
+      }
+    }, 1000);
+  }
+
   /* ── 뽑기 ── */
   function rand(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
   function pickJamo(){
@@ -2226,6 +2318,7 @@
   async function round(){
     if(running) return;
     running = true;
+    rtStop();
     pauseListening();
     stopRecogOnly();
     hideTeamPick();
@@ -2278,6 +2371,7 @@
 
     running = false;
     lockModes(false);
+    rtStart();   // 라운드 타이머가 설정되어 있으면 카운트다운 시작
   }
 
   function lockModes(lock){
@@ -2294,6 +2388,7 @@
   renderAnswers();
 
   function resetStage(){
+    rtStop();
     pauseListening();
     hideTeamPick();
     big.className = 'big';
