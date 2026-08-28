@@ -1404,11 +1404,21 @@
     }
     return audioCtx;
   }
+  /* 마이크 권한을 첫 터치 때 미리 받아둔다 — 게임 중간에 허용창이 뜨지 않게 */
+  let micPrimed = false;
+  function primeMic(){
+    if(micPrimed || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+    micPrimed = true;
+    navigator.mediaDevices.getUserMedia({audio:true})
+      .then(s => { s.getTracks().forEach(t => t.stop()); })   // 권한만 받고 즉시 마이크 해제
+      .catch(() => {});
+  }
   /* 첫 터치/클릭이 어디든 즉시 오디오를 켜고 배경음악을 시작한다 (브라우저 자동재생 정책상 최선) */
   ['click', 'touchend'].forEach(ev =>
     document.addEventListener(ev, () => {
       if(soundOn) ctx();
       else if(audioCtx && audioCtx.state !== 'running') audioCtx.resume().catch(() => {});
+      primeMic();
     }, {passive:true}));
   function tone(freq, start, dur, vol, type){
     const ac = ctx();
@@ -1537,7 +1547,6 @@
   /* ── 음성 인식 (푸시투톡: 「정답 외치기」를 누른 뒤 한 문장만 듣는다) ── */
   let listening = false;
   let listenEndHook = null;   // 듣기가 스스로 끝났을 때 호출 (3힌트 퀴즈의 카운트다운 재개용)
-  let loopCb = null;          // 자동 듣기 모드 — 듣기가 끝나면 이 콜백으로 다시 듣기 시작
 
   function listenOnce(onFinal){
     if(!SR || !micOn || listening) return;
@@ -1578,15 +1587,10 @@
       listening = false;
       recog = null;
       bgmDuck(false);
+      /* iOS는 마이크 사용 후 오디오를 중단시키므로 강제로 되살린다 */
+      if(audioCtx && audioCtx.state !== 'running') audioCtx.resume().catch(() => {});
       updateSpeakUI();
-      const cb = loopCb;
       if(listenEndHook) listenEndHook();
-      else if(cb && micOn){
-        /* 자동 듣기: 잠시 후 다시 듣기 시작 */
-        setTimeout(() => {
-          if(cb === loopCb && !listening){ listenOnce(cb); loopCb = cb; }
-        }, 300);
-      }
     };
     listening = true;
     bgmDuck(true);   // 듣는 동안 배경음악을 줄여 인식 방해 방지
@@ -1602,8 +1606,8 @@
       recog = null;
     }
     listening = false;
-    loopCb = null;
     bgmDuck(false);
+    if(audioCtx && audioCtx.state !== 'running') audioCtx.resume().catch(() => {});
   }
   function pauseListening(){
     answerActive = false;
@@ -1624,13 +1628,7 @@
     }
   }
   /* 정답 외치기 버튼 공통 배선 — 누르면 듣기 시작, 듣는 중에 다시 누르면 취소 */
-  /* 자동 듣기 시작 — 듣기가 끝날 때마다 스스로 다시 듣는다 */
-  function listenAuto(onFinal){
-    if(!SR || !micOn) return;
-    listenOnce(onFinal);
-    loopCb = onFinal;
-  }
-  function wireSpeakBtn(onFinal, onStartListen, auto){
+  function wireSpeakBtn(onFinal, onStartListen){
     const sb = document.getElementById('speakBtn');
     if(!sb) return;
     sb.addEventListener('click', () => {
@@ -1642,8 +1640,7 @@
         return;
       }
       if(onStartListen) onStartListen();
-      if(auto) listenAuto(onFinal);
-      else listenOnce(onFinal);
+      listenOnce(onFinal);
     });
   }
 
@@ -1926,7 +1923,7 @@
       emoAnswer();
     } else {
       buzzFail();
-      showVerdict('✗ 땡! 다시 외쳐 보세요', 'bad');
+      showVerdict('✗ 땡! 「정답 외치기」를 누르고 다시 도전해 보세요', 'bad');
     }
   }
 
@@ -1938,13 +1935,12 @@
     big.className = 'big emoji';
     big.textContent = emoItem.e;
     chimeReveal();
-    hint.innerHTML = '이 이모지가 표현하는 <b>' + EMO_CAT_NAMES[emoCat] + '</b> 제목은?<br>정답을 외치면 맞을 경우 자동으로 공개됩니다! (자동으로 듣고 있어요)';
+    hint.innerHTML = '이 이모지가 표현하는 <b>' + EMO_CAT_NAMES[emoCat] + '</b> 제목은?<br>「정답 외치기」를 누르고 외치면 맞을 경우 자동으로 공개됩니다!';
     actions.innerHTML =
       (SR ? '<button class="btn btn-speak" id="speakBtn">🎤 정답 외치기</button>' : '') +
       '<button class="btn btn-next" id="emoAnswerBtn">정답 공개</button>' +
       '<button class="btn btn-reset" id="emoHomeBtn">처음으로</button>';
-    wireSpeakBtn(checkEmoAnswer, null, true);
-    if(SR && micOn) listenAuto(checkEmoAnswer);   // 문제 공개와 동시에 듣기 시작
+    wireSpeakBtn(checkEmoAnswer);
     document.getElementById('emoAnswerBtn').addEventListener('click', emoAnswer);
     document.getElementById('emoHomeBtn').addEventListener('click', emoReset);
   }
@@ -2258,8 +2254,8 @@
     chimeReveal();
 
     hint.textContent = (mode === 1)
-      ? '이 초성으로 시작하는 단어를 외치세요! (자동으로 듣고 있어요)'
-      : '앞 두 글자의 초성이 일치하는 단어를 외치세요! (자동으로 듣고 있어요)';
+      ? '「정답 외치기」를 누르고 이 초성으로 시작하는 단어를 외치세요!'
+      : '「정답 외치기」를 누르고 앞 두 글자의 초성이 일치하는 단어를 외치세요!';
 
     answerActive = true;
 
@@ -2267,8 +2263,7 @@
       (SR ? '<button class="btn btn-speak" id="speakBtn">🎤 정답 외치기</button>' : '') +
       '<button class="btn btn-next" id="nextBtn">다 음</button>' +
       '<button class="btn btn-reset" id="resetBtn">처음으로</button>';
-    wireSpeakBtn(handleUtterance, null, true);
-    if(SR && micOn) listenAuto(handleUtterance);   // 초성 공개와 동시에 듣기 시작
+    wireSpeakBtn(handleUtterance);
     document.getElementById('nextBtn').addEventListener('click', () => {
       running = false; lockModes(false);
       round();
